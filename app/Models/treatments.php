@@ -1,9 +1,12 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Treatments extends Model
+class treatments extends Model
 {
+    public $timestamps = false;
+
     protected $guarded = [];
 }

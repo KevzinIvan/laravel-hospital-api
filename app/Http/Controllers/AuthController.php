@@ -3,55 +3,143 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Doctor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // POST /api/login
     public function login(Request $request)
     {
         $request->validate([
             'username' => 'required|string',
-            'password' => 'required|string',
+            'password' => 'required|string'
         ]);
 
         $user = User::where('username', $request->username)->first();
 
-        $valid = false;
-        if ($user) {
-            if (!empty($user->salt) && password_verify($request->password . $user->salt, $user->password)) {
-                $valid = true;
-            } elseif (password_verify($request->password, $user->password)) {
-                $valid = true;
-            }
+        if (!$user || !(
+            password_verify($request->password . $user->salt, $user->password)
+            || password_verify($request->password, $user->password)
+        )) {
+            return response()->json([
+                'error' => 'Username atau password salah'
+            ], 401);
         }
 
-        if (!$valid) {
-            return response()->json(['error' => 'Username atau password salah'], 401);
+        $scopes = $this->scopesFor($user->role);
+
+        if ($user->role === 'doctor') {
+            $id = Doctor::where(
+                'name', 'dr. ' . ucfirst($user->username)
+            )->value('id');
+
+            if (!$id) {
+                return response()->json([
+                    'error' => 'Dokter tidak ditemukan'
+                ], 403);
+            }
+
+            $scopes[] = "doctor_id:$id";
         }
 
         $user->tokens()->delete();
-        $token = $user->createToken('api-token', [$user->role])->plainTextToken;
+
+        $token = auth('api')->claims([
+            'scopes' => $scopes
+        ])->login($user);
 
         return response()->json([
             'token' => $token,
-            'role'  => $user->role,
-            'user'  => $user->username,
+            'type' => 'Bearer'
         ]);
     }
 
-    // POST /api/logout
-    public function logout(Request $request)
+    private function scopesFor($role)
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out']);
+        if ($role === 'admin') {
+            return ['*'];
+        }
+
+        $resources = [
+            'patients',
+            'doctors',
+            'appointments',
+            'treatments',
+            'treatment_categories',
+            'billing',
+            'staff',
+            'staff_schedules',
+            'hospital_beds',
+            'bed_admissions',
+            'logs'
+        ];
+
+        $blocked = [
+            'doctor' => [
+                'patients',
+                'staff',
+                'staff_schedules',
+                'hospital_beds',
+                'billing',
+                'logs'
+            ],
+            'nurse' => [
+                'staff',
+                'logs'
+            ],
+            'receptionist' => [
+                'staff',
+                'logs'
+            ]
+        ];
+
+        $scopes = [];
+
+        foreach ($resources as $r) {
+            if (!in_array($r, $blocked[$role] ?? [])) {
+                $scopes[] = "$r:read";
+            }
+        }
+
+        $write = [
+            'doctor' => [
+                'appointments:create',
+                'appointments:update',
+                'treatments:create',
+                'treatments:update',
+                'bed_admissions:create',
+                'bed_admissions:update'
+            ],
+            'nurse' => [
+                'patients:update',
+                'bed_admissions:create',
+                'bed_admissions:update',
+                'bed_admissions:delete',
+                'hospital_beds:update'
+            ],
+            'receptionist' => [
+                'patients:create',
+                'patients:update',
+                'appointments:create',
+                'appointments:update',
+                'billing:create'
+            ]
+        ];
+
+        return array_merge($scopes, $write[$role] ?? []);
     }
 
-    // GET /api/me
+    public function logout()
+    {
+        auth('api')->logout();
+
+        return response()->json([
+            'message' => 'Logged out'
+        ]);
+    }
+
     public function me(Request $request)
     {
         return response()->json($request->user());
     }
-}       
-
+}

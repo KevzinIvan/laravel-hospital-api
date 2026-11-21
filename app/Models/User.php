@@ -5,16 +5,15 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     use HasApiTokens, Notifiable;
 
-    // Pakai username bukan email (sesuai struktur DB lama)
     protected $fillable = ['username', 'password', 'salt', 'role'];
-    protected $hidden   = ['password', 'salt', 'remember_token'];
+    protected $hidden = ['password', 'salt', 'remember_token'];
 
-    // Kasih tahu Laravel bahwa field untuk login adalah "username"
     public function getAuthIdentifierName(): string
     {
         return 'username';
@@ -25,5 +24,15 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
         ];
+    }
+
+    public function getJWTIdentifier()
+    {
+        return $this->getAuthIdentifier();
+    }
+
+    public function getJWTCustomClaims(): array
+    {
+        return [];
     }
 }

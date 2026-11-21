@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Foundation\Application;
@@ -13,13 +14,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->redirectGuestsTo(fn () => null);
+        $middleware->alias([
+            'scope' => \App\Http\Middleware\CheckScope::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Kalau tidak terautentikasi di API route → return JSON 401, bukan redirect
         $exceptions->renderable(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return response()->json(['error' => 'Unauthenticated. Token tidak valid atau tidak ada.'], 401);
+                return response()->json([
+                    'error' => 'Unauthenticated. Token tidak valid atau tidak ada.'
+                ], 401);
             }
         });
     })->create();

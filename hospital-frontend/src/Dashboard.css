@@ -1,0 +1,100 @@
+
+.dashboard {
+  width: 100%;
+  max-width: 1000px;
+  padding: 35px;
+  background: white;
+  border-radius: 12px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  font-size: 14px;
+  margin: 17px 0 8px;
+}
+
+input, select, textarea {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  background: white;
+}
+
+textarea {
+  height: 130px;
+  resize: vertical;
+}
+
+button {
+  padding: 11px 22px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.logout {
+  background: Red;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.get { background: Teal; }
+.post { background: Green; }
+.put { background: Orange; }
+.delete { background: Red; }
+
+button:hover {
+  opacity: 0.7;
+}
+
+pre {
+  min-height: 80px;
+  padding: 15px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th, td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background: #f1f5f9;
+}
