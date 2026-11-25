@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => null);
         $middleware->alias([
             'scope' => \App\Http\Middleware\CheckScope::class,
+            'jwt.current' => \App\Http\Middleware\EnsureCurrentJwtToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -11,7 +11,7 @@ use App\Http\Controllers\UpdateController;
 // LOGIN
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'jwt.current'])->group(function () {
 
     // AUTH
     Route::post('/logout', [AuthController::class, 'logout']);

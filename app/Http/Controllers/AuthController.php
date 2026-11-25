@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Doctor;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -42,11 +43,19 @@ class AuthController extends Controller
             $scopes[] = "doctor_id:$id";
         }
 
-        $user->tokens()->delete();
+        $token = DB::transaction(function () use ($user, $scopes) {
+            $user = User::query()->lockForUpdate()->findOrFail($user->getKey());
+            $user->tokens()->delete();
+            DB::table('users')
+                ->where($user->getKeyName(), $user->getKey())
+                ->increment('jwt_token_version');
+            $user->jwt_token_version++;
 
-        $token = auth('api')->claims([
-            'scopes' => $scopes
-        ])->login($user);
+            return auth('api')->claims([
+                'scopes' => $scopes,
+                'token_version' => $user->jwt_token_version,
+            ])->login($user);
+        });
 
         return response()->json([
             'token' => $token,
@@ -77,7 +86,6 @@ class AuthController extends Controller
         $blocked = [
             'doctor' => [
                 'patients',
-                'staff',
                 'staff_schedules',
                 'hospital_beds',
                 'billing',

@@ -9,11 +9,6 @@ use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, Notifiable;
-
-    protected $fillable = ['username', 'password', 'salt', 'role'];
-    protected $hidden = ['password', 'salt', 'remember_token'];
-
     public function getAuthIdentifierName(): string
     {
         return 'username';
@@ -23,6 +18,7 @@ class User extends Authenticatable implements JWTSubject
     {
         return [
             'password' => 'hashed',
+            'jwt_token_version' => 'integer',
         ];
     }
 

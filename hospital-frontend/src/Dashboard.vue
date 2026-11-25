@@ -1,112 +1,97 @@
-
-<script setup>
-import { ref } from 'vue'
-import './Dashboard.css'
-
-const props = defineProps(['token'])
-const emit = defineEmits(['logout'])
-
-const API = 'http://127.0.0.1:8000/api'
-
-const table = ref('patient')
-const id = ref('')
-const rows = ref([])
-const columns = ref([])
-
-async function getData() {
-  let url = `/${table.value}`
-
-  if (id.value.trim()) {
-    url += `/${id.value.trim()}`
-  }
-
-  const res = await fetch(API + url, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      Authorization: `Bearer ${props.token}`
-    }
-  })
-
-  const json = await res.json()
-
-  rows.value = Array.isArray(json.data)
-    ? json.data
-    : json.data ? [json.data] : []
-
-  columns.value = rows.value.length
-    ? Object.keys(rows.value[0])
-    : []
-}
-
-function formatCell(value) {
-  return typeof value === 'object' && value !== null
-    ? JSON.stringify(value)
-    : value ?? '-'
-}
-</script>
+<script src="./Dashboard.js"></script>
 
 <template>
   <div class="dashboard">
-    <header>
-      <div>
-        <h1>Hospital Dashboard</h1>
-      </div>
+    <aside class="sidebar">
+      <img class="sidebar-logo" :src="logo" alt="Hospital Management System" />
 
-      <button class="logout" @click="emit('logout')">Logout</button>
-    </header>
+      <nav aria-label="Navigasi utama">
+        <button
+          v-for="[key, label] in items"
+          :key="key"
+          class="nav-link"
+          :class="{ active: table === key }"
+          :aria-current="table === key ? 'page' : undefined"
+          @click="selectTable(key)"
+        >{{ label }}</button>
+      </nav>
+    </aside>
 
-    <br>
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">Dashboard {{ table === 'overview' ? '' : `/ ${selected?.[1]}` }}</div>
+        <button class="logout" @click="logout">Log out</button>
+      </header>
 
-    <h2>CRUD Management</h2>
+      <section class="content">
+        <div class="page-heading">
+          <h1>{{ selected?.[1] }}</h1>
+          <button class="refresh" :disabled="loading || summaryLoading" @click="handleRefresh">
+            {{ (loading || summaryLoading) ? 'Loading...' : 'Refresh' }}
+          </button>
+        </div>
 
-    <label>Select Table</label>
-    <select v-model="table">
-      <option value="doctor">Doctor</option>
-      <option value="patient">Patient</option>
-      <option value="billing">Billing</option>
-      <option value="appointment">Appointment</option>
-      <option value="staff">Staff</option>
-      <option value="hospital_beds">Hospital Beds</option>
-      <option value="treatments">Treatments</option>
-      <option value="staff_schedules">Staff Schedules</option>
-      <option value="treatment_categories">Treatment Categories</option>
-      <option value="logs">Logs</option>
-      <option value="user">User</option>
-    </select>
+        <!-- TAMPILAN MENU UTAMA (OVERVIEW) -->
+        <div v-if="table === 'overview'">
+          <h2 class="welcome">Hi, {{ username || 'User' }}</h2>
 
-    <label>ID</label>
-    <input v-model="id" placeholder="Enter ID">
+          <div class="summary-grid">
+            <div
+              v-for="[key, label] in summaryItems"
+              :key="key"
+              class="summary-card"
+            >
+              <b>{{ label }}</b>
+              <span>{{ summaryLoading ? '...' : (summaryCounts[key] ?? 0) }}</span>
+            </div>
+          </div>
+        </div>
 
-    <div class="actions">
-      <button class="get" @click="getData">GET</button>
-      <button class="post" disabled>POST</button>
-      <button class="put" disabled>PUT</button>
-      <button class="delete" disabled>DELETE</button>
-    </div>
+        <!-- TAMPILAN TABEL DATA -->
+        <section v-else class="data-card">
+          <div class="card-heading">
+            <div class="card-actions">
+              <button class="btn-add">Add</button>
+              <button class="btn-edit">Edit</button>
+              <button class="btn-delete" @click="isDeleting = !isDeleting">
+                {{ isDeleting ? 'Done' : 'Delete' }}
+              </button>
+              <button class="btn-sort" @click="isSorted = !isSorted">
+                {{ isSorted ? 'Reset' : 'Sort A - Z' }}
+              </button>
+            </div>
+            <label>
+              <input v-model="search" placeholder="Search by ID..." />
+            </label>
+          </div>
 
-    <label>Response</label>
-
-    <div class="table-container">
-      <table v-if="rows.length">
-        <thead>
-          <tr>
-            <th v-for="column in columns" :key="column">
-              {{ column }}
-            </th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr v-for="(row, index) in rows" :key="index">
-            <td v-for="column in columns" :key="column">
-              {{ formatCell(row[column]) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p v-else>Data belum ditampilkan.</p>
-    </div>
+          <div class="table-wrap">
+            <table v-if="columns.length">
+              <thead>
+                <tr>
+                  <th v-for="column in columns" :key="column">{{ column.replaceAll('_', ' ') }}</th>
+                  <th v-if="isDeleting" style="width: 60px; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, index) in paddedRows" :key="row?.id ?? `empty-${index}`">
+                  <td v-for="column in columns" :key="column">
+                    {{ row ? (typeof row[column] === 'object' && row[column] !== null ? JSON.stringify(row[column]) : row[column] ?? '-') : '' }}
+                  </td>
+                  <td v-if="isDeleting" style="text-align: center;">
+                    <button v-if="row" class="btn-remove" @click="removeRow(row.id)">✕</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="no-data">
+              <b>{{ loading ? 'Loading data...' : error ? 'Could not load data' : 'No data available' }}</b>
+              <p>{{ error || 'Records will appear here when available.' }}</p>
+              <button v-if="error" class="try-again" @click="loadData">Try again</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
   </div>
 </template>

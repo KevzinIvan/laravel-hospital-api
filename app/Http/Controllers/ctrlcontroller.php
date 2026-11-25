@@ -60,6 +60,8 @@ class ctrlcontroller extends Controller
     {
         $user = auth('api')->user();
 
+        $query = Appointment::with(['patient', 'doctor']);
+
         if ($user->role === 'doctor') {
             $doctorId = Doctor::where(
                 'name',
@@ -72,21 +74,47 @@ class ctrlcontroller extends Controller
                 ], 403);
             }
 
-            return response()->json([
-                'data' => Appointment::where(
-                    'doctor_id',
-                    $doctorId
-                )->get()
-            ]);
+            $query->where('doctor_id', $doctorId);
         }
 
+        $appointments = $query->get()->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'patient_name' => $item->patient->name ?? '-',
+                'doctor_name' => $item->doctor->name ?? '-',
+                'appointment_date' => $item->appointment_date,
+                'complaint' => $item->complaint,
+                'status' => $item->status,
+                'created_at' => $item->created_at,
+            ];
+        });
+
         return response()->json([
-            'data' => Appointment::all()
+            'data' => $appointments
         ]);
     }
 
     public function staffget()
     {
+        $user = auth('api')->user();
+
+        if ($user->role === 'doctor') {
+            $doctorName = Doctor::where(
+                'name',
+                'dr. ' . ucfirst($user->username)
+            )->value('name');
+
+            if (!$doctorName) {
+                return response()->json([
+                    'error' => 'Dokter tidak ditemukan'
+                ], 403);
+            }
+
+            return response()->json([
+                'data' => Staff::where('name', $doctorName)->get()
+            ]);
+        }
+
         return response()->json([
             'data' => Staff::all()
         ]);
